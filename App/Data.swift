@@ -63,6 +63,16 @@ final class Store {
     }()
     struct Stored: Codable { var id, child, activity: String; var version: Int; var type: String; var payload: [String: Int]; var ts: Int64; var sent: Bool }
 
+    var role: String? { get { d.string(forKey: "role") } set { d.set(newValue, forKey: "role") } }
+    /// ID aktivitas yang ditugaskan guru (mode murid).
+    var assigned: Set<String> {
+        get { Set((d.string(forKey: "assigned") ?? "").split(separator: ",").map(String.init)) }
+        set { d.set(newValue.sorted().joined(separator: ","), forKey: "assigned") }
+    }
+    func logout() {
+        for k in d.dictionaryRepresentation().keys { d.removeObject(forKey: k) }
+        try? FileManager.default.removeItem(at: url)
+    }
     var accessToken: String? { get { d.string(forKey: "access") } set { d.set(newValue, forKey: "access") } }
     var packData: Data? { get { d.data(forKey: "pack") } set { d.set(newValue, forKey: "pack") } }
     var childrenData: Data? { get { d.data(forKey: "children") } set { d.set(newValue, forKey: "children") } }
@@ -121,6 +131,26 @@ final class Api {
         try await auth("/auth/parents/register", ["email": email, "password": pw, "consentPolicyVersion": "2026-11-draft", "consentGranted": true])
     }
     func login(_ email: String, _ pw: String) async throws { try await auth("/auth/login", ["email": email, "password": pw]) }
+
+    /// Login murid dari kartu: kode QR + 3 indeks gambar PIN (0..8).
+    func studentLogin(_ code: String, _ pin: [Int]) async throws {
+        let (c, data) = try await call("POST", "/auth/students/login", ["loginCode": code, "pin": pin])
+        guard (200...299).contains(c) else { throw HttpError(code: c) }
+        store.accessToken = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["accessToken"] as? String
+        store.role = "student"
+    }
+    /// Muat profil murid, misi tugas, konten, dan kebijakan.
+    func loadStudent() async throws -> ChildDef {
+        let (c, data) = try await call("GET", "/me/profile")
+        guard (200...299).contains(c), let o = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let id = o["id"] as? String, let alias = o["alias"] as? String, let year = o["birthYear"] as? Int else { throw HttpError(code: c) }
+        let child = ChildDef(id: id, alias: alias, birthYear: year)
+        store.childrenData = try JSONEncoder().encode([child])
+        store.assigned = Set(((o["assignments"] as? [[String: Any]]) ?? []).compactMap { $0["activityId"] as? String })
+        try await refreshPack(age: Calendar.current.component(.year, from: Date()) - year)
+        try await refreshPolicy(childId: id)
+        return child
+    }
 
     func refreshChildren() async throws -> [ChildDef] {
         let (code, data) = try await call("GET", "/children")

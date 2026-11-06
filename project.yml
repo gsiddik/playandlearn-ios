@@ -22,4 +22,5 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: "Play & Learn"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: "Kamera dipakai untuk memindai kode QR pada kartu login murid."
         SWIFT_VERSION: "5.9"

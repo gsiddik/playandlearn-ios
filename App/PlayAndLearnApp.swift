@@ -19,7 +19,7 @@ final class Speaker {
 }
 
 enum Screen: Equatable {
-    case gate, auth, children, home
+    case role, student, studentSettings, gate, auth, children, home
     case level(activityId: String, level: Int)
 }
 
@@ -37,7 +37,7 @@ struct RootView: View {
     init() {
         let s = Store()
         api = Api(store: s)
-        _screen = State(initialValue: s.accessToken == nil ? .gate : .home)
+        _screen = State(initialValue: s.accessToken == nil ? .role : .home)
         _children = State(initialValue: s.children)
         _child = State(initialValue: s.children.first)
     }
@@ -56,9 +56,17 @@ struct RootView: View {
 
     var body: some View {
         switch screen {
+        case .role:
+            RoleChooser(onParent: { screen = .gate }, onStudent: { screen = .student })
+        case .student:
+            StudentLogin(busy: busy, error: error, onSubmit: { code, pin in
+                run({ try await api.studentLogin(code, pin); child = try await api.loadStudent() }, ok: { screen = .home })
+            }, onBack: { screen = store.accessToken == nil ? .role : .home })
+        case .studentSettings:
+            StudentSettings(onLogout: { store.logout(); child = nil; screen = .role }, onBack: { screen = .home })
         case .gate:
-            ParentalGate(onPassed: { screen = store.accessToken == nil ? .auth : .children },
-                         onCancel: { screen = store.accessToken == nil ? .gate : .home })
+            ParentalGate(onPassed: { screen = store.role == "student" ? .studentSettings : (store.accessToken == nil ? .auth : .children) },
+                         onCancel: { screen = store.accessToken == nil ? .role : .home })
         case .auth:
             AuthView(busy: busy, error: error) { email, pw, reg in
                 run({ if reg { try await api.register(email, pw) } else { try await api.login(email, pw) }; children = try await api.refreshChildren() },
@@ -92,13 +100,13 @@ struct RootView: View {
                 case .outsideAllowedHours: return "Waktunya istirahat"
                 }
             }()
-            ChildHome(activities: pack.activities, blockedReason: blocked, onPlay: { a in
+            ChildHome(activities: pack.activities, assigned: store.assigned, blockedReason: blocked, onPlay: { a in
                 startedAt = nowMs()
                 screen = .level(activityId: a.id, level: min(store.level(c.id, a.id), a.levels.count))
             }, onParent: { screen = .gate })
             .task { if store.accessToken != nil { try? await api.sync() } } // senyap; gagal = tetap offline
         } else {
-            ParentalGate(onPassed: { screen = store.accessToken == nil ? .auth : .children }, onCancel: {})
+            Color.clear.onAppear { screen = .role }
         }
     }
 

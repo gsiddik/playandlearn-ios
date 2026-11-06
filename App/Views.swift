@@ -1,5 +1,6 @@
 import SwiftUI
 import PlayAndLearnCore
+import VisionKit
 
 private let colorOf: [String: Color] = ["red": .red, "blue": .blue, "A": .red, "B": .blue, "C": .green]
 private let touch: CGFloat = 88 // target sentuh besar untuk anak
@@ -22,6 +23,89 @@ struct ParentalGate: View {
                 Button("Lanjut") { if Int(input) == a * b { onPassed() } else { wrong = true } }.buttonStyle(.borderedProminent)
                 Button("Kembali", action: onCancel).buttonStyle(.bordered)
             }
+        }.padding(24)
+    }
+}
+
+/// Urutan gambar PIN baku (sama di semua klien): anjing, kucing, ikan, pohon, mobil, apel, bintang, bulan, balon.
+let pinIcons = ["🐶", "🐱", "🐟", "🌳", "🚗", "🍎", "⭐", "🌙", "🎈"]
+
+/// Pilihan peran tanpa teks: murid atau orang tua (di balik gerbang).
+struct RoleChooser: View {
+    let onParent: () -> Void
+    let onStudent: () -> Void
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("🎒").font(.system(size: 72)).frame(width: 240, height: 140).background(Color.blue.opacity(0.2)).cornerRadius(24).onTapGesture(perform: onStudent)
+            Text("👨‍👩‍👧").font(.system(size: 72)).frame(width: 240, height: 140).background(Color.green.opacity(0.2)).cornerRadius(24).onTapGesture(perform: onParent)
+        }
+    }
+}
+
+/// Pemindai QR memakai VisionKit (butuh izin kamera, perangkat dengan kamera).
+struct QRScanner: UIViewControllerRepresentable {
+    let onCode: (String) -> Void
+    func makeUIViewController(context: Context) -> DataScannerViewController {
+        let vc = DataScannerViewController(recognizedDataTypes: [.barcode(symbologies: [.qr])], isHighlightingEnabled: true)
+        vc.delegate = context.coordinator
+        try? vc.startScanning()
+        return vc
+    }
+    func updateUIViewController(_ vc: DataScannerViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onCode: onCode) }
+    final class Coordinator: NSObject, DataScannerViewControllerDelegate {
+        let onCode: (String) -> Void
+        init(onCode: @escaping (String) -> Void) { self.onCode = onCode }
+        func dataScanner(_ s: DataScannerViewController, didAdd items: [RecognizedItem], allItems: [RecognizedItem]) {
+            for case let .barcode(b) in items { if let v = b.payloadStringValue { onCode(v); return } }
+        }
+    }
+}
+
+/// Login murid: pindai QR kartu lalu ketuk 3 gambar PIN.
+struct StudentLogin: View {
+    let busy: Bool
+    let error: String?
+    let onSubmit: (String, [Int]) -> Void
+    let onBack: () -> Void
+    @State private var code = ""
+    @State private var pin: [Int] = []
+    @State private var scanning = false
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("✖").font(.system(size: 28)).frame(maxWidth: .infinity, alignment: .trailing).onTapGesture(perform: onBack)
+            if scanning && DataScannerViewController.isSupported {
+                QRScanner { code = $0; scanning = false }.frame(height: 260).cornerRadius(16)
+            } else {
+                Text(code.isEmpty ? "📷" : "✅").font(.system(size: 56)).frame(width: 200, height: 100)
+                    .background(code.isEmpty ? Color.yellow.opacity(0.4) : Color.green.opacity(0.4)).cornerRadius(24)
+                    .onTapGesture { scanning = true }
+            }
+            HStack { ForEach(0..<3, id: \.self) { i in Text(i < pin.count ? pinIcons[pin[i]] : "⚪").font(.system(size: 44)) } }
+            ForEach(0..<3, id: \.self) { r in
+                HStack { ForEach(0..<3, id: \.self) { c in
+                    Text(pinIcons[r * 3 + c]).font(.system(size: 40)).frame(width: 72, height: 72)
+                        .background(Color.gray.opacity(0.15)).cornerRadius(16)
+                        .onTapGesture { if pin.count < 3 { pin.append(r * 3 + c) } }
+                } }
+            }
+            HStack {
+                Button("⌫") { _ = pin.popLast() }.buttonStyle(.bordered)
+                Button("▶") { onSubmit(code, pin) }.buttonStyle(.borderedProminent).disabled(busy || code.isEmpty || pin.count != 3)
+            }
+            if let error { Text("⚠ \(error)") }
+        }.padding(24)
+    }
+}
+
+struct StudentSettings: View {
+    let onLogout: () -> Void
+    let onBack: () -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Akun murid").font(.title)
+            Button("Keluar dari akun murid", action: onLogout).buttonStyle(.borderedProminent)
+            Button("Kembali", action: onBack).buttonStyle(.bordered)
         }.padding(24)
     }
 }
@@ -74,6 +158,7 @@ struct ChildPicker: View {
 /// Beranda anak: hanya ikon besar, tanpa teks yang harus dibaca.
 struct ChildHome: View {
     let activities: [ActivityDef]
+    let assigned: Set<String>
     let blockedReason: String?
     let onPlay: (ActivityDef) -> Void
     let onParent: () -> Void
@@ -84,9 +169,9 @@ struct ChildHome: View {
                 Text("😴").font(.system(size: 96))
                 Text(blockedReason).font(.title3)
             } else {
-                ForEach(activities) { a in
+                ForEach(activities.sorted { assigned.contains($0.id) && !assigned.contains($1.id) }) { a in
                     Button { onPlay(a) } label: {
-                        Text(icon[a.kind] ?? "⭐").font(.system(size: 64))
+                        Text((assigned.contains(a.id) ? "📌" : "") + (icon[a.kind] ?? "⭐")).font(.system(size: 64))
                             .frame(width: 240, height: 120).background(Color.yellow.opacity(0.4)).cornerRadius(24)
                     }
                 }
