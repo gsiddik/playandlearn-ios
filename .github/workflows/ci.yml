@@ -6,3 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift test
+      - name: Build aplikasi (simulator)
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild -project PlayAndLearn.xcodeproj -scheme PlayAndLearn \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

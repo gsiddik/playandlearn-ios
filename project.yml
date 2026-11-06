@@ -1,0 +1,25 @@
+name: PlayAndLearn
+options:
+  bundleIdPrefix: id.playandlearn
+  deploymentTarget: { iOS: "16.0" }
+packages:
+  PlayAndLearnCore:
+    path: .
+targets:
+  PlayAndLearn:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - package: PlayAndLearnCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: id.playandlearn.app
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Play & Learn"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
+        SWIFT_VERSION: "5.9"
