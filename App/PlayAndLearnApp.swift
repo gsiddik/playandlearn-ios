@@ -48,8 +48,8 @@ struct RootView: View {
         busy = true; error = nil
         Task {
             do { try await work(); ok() }
-            catch let e as HttpError { error = "Gagal (\(e.code))" }
-            catch { error = "Tidak ada koneksi" }
+            catch let e as HttpError { self.error = "Gagal (\(e.code))" }
+            catch { self.error = "Tidak ada koneksi" }
             busy = false
         }
     }
