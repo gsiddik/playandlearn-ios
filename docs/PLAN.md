@@ -90,26 +90,25 @@ Setiap increment: dapat didemokan, ada **checkpoint** (tag git + catatan di repo
 - Prototipe desain (UX anak zero-text) untuk di-review ahli PAUD.
 - **Checkpoint 0:** keputusan disetujui, CI hijau di 3 repo, kontrak v0 disetujui.
 
-### Increment 1 — MVP "Satu anak bermain offline, guru melihat hasil"
-Tujuan: membuktikan loop inti [DOK: closed-loop] dengan cakupan minimum.
-- **Backend:** tenant, user & RBAC dasar, kelas/roster, anak, kartu login QR + PIN gambar, penerbitan content pack, penerimaan batch event.
-- **Android (platform pertama; lihat Keputusan #4):** login anak via QR/PIN gambar, beranda zero-text, **2–3 aktivitas** (mis. mencocokkan/memilah drag-and-drop bergaya Montessori; pola visual; hitung 1–10 — judul final dengan ahli PAUD), umpan balik suara+visual, petunjuk bertahap sederhana (aturan tetap, belum adaptif), penyimpanan lokal, sync event, jeda otomatis.
-- **Portal:** area Sekolah/Guru minimum — login guru, buat kelas, tambah anak, cetak kartu QR, tampilan hasil per anak (ringkas). Konten MVP di-seed lewat berkas/CLI (belum ada CMS).
-- **Privasi MVP:** tanpa SDK pihak ketiga, persetujuan sekolah/orang tua tercatat, retensi dasar, hapus data.
-- **Checkpoint 1:** demo end-to-end (guru buat kelas → anak main offline → sync → guru lihat hasil); uji pada perangkat Android nyata; review keselamatan anak (daftar periksa bagian 2).
+### Increment 1 — MVP "Orang tua mendaftar, anak bermain offline, orang tua melihat hasil" (jalur B2C)
+Tujuan: membuktikan loop inti [DOK: closed-loop] dengan cakupan minimum, jalur Orang Tua dulu (Keputusan #6).
+- **Backend:** akun orang tua (OAuth 2.0/OIDC), persetujuan orang tua terverifikasi, profil anak (pseudonim, tanpa nama lengkap/foto), publikasi content pack, penerimaan batch event. Model data tetap menyiapkan `Tenant_ID` (tenant "keluarga" per akun) agar jalur sekolah dapat ditambahkan tanpa migrasi besar [ASUMSI].
+- **Android:** onboarding orang tua + parental gate, pilih profil anak, beranda zero-text, **2–3 aktivitas** untuk usia 4–7 (mis. memilah/mencocokkan drag-and-drop bergaya Montessori; pola visual; hitung 1–10; judul final bersama ahli PAUD), umpan balik suara+visual, petunjuk bertahap (aturan tetap, belum adaptif), DB lokal, sync event, batas durasi dasar dan jeda otomatis.
+- **Portal Orang Tua v1:** login, kelola profil anak, dashboard perkembangan sederhana, pengaturan durasi layar. Konten MVP di-seed lewat berkas/CLI (belum ada CMS).
+- **Privasi MVP:** tanpa SDK pihak ketiga/iklan, persetujuan orang tua tercatat, retensi dasar, ekspor & hapus data.
+- **Checkpoint 1:** demo end-to-end (orang tua daftar → anak main offline → sync → orang tua melihat hasil); uji pada perangkat Android nyata; review keselamatan anak.
 
-### Increment 2 — Orang tua & kontrol
-- Backend: akun orang tua, persetujuan, aturan screen time (server authority), push.
-- Mobile: **mode pendamping orang tua** dengan parental gate, batas durasi/jam, penguncian otomatis; push FCM.
-- Portal Orang Tua v1: dashboard perkembangan (radar 5 area [DOK]) dengan narasi sederhana, kontrol screen time.
-- **Checkpoint 2:** orang tua mengatur batas waktu dan perubahan tiba di perangkat anak (online & setelah kembali online).
+### Increment 2 — Kontrol orang tua lengkap
+- Aturan screen time penuh (jam operasional, jam tidur; server authority), push FCM, radar 5 area + narasi capaian kurikulum [DOK], rekomendasi aktivitas offline/worksheet dasar.
+- **Checkpoint 2:** perubahan aturan di portal tiba di perangkat anak (online & setelah kembali online).
 
 ### Increment 3 — iOS paritas
 - iOS: fitur Increment 1+2 (child app, parent mode, sync, APNs) memakai kontrak yang sama.
 - Uji lintas platform pada kontrak (contract tests).
 - **Checkpoint 3:** satu kelas campuran Android+iOS tersinkron benar.
 
-### Increment 4 — Guru: penugasan & penilaian
+### Increment 4 — Jalur sekolah/guru (B2B): tenant, roster, penugasan & penilaian
+- Tenant sekolah, roster kelas, kartu login QR + PIN gambar, persetujuan via sekolah (perlu nasihat hukum).
 - Quest Dispatcher (pilih modul → tugaskan kelas), konfigurasi kerangka kurikulum per sekolah [DOK].
 - Adaptive scaffolding v1 (tingkat kesulitan berdasar performa), telemetri lebih kaya.
 - Diagnostic Gradebook v1 (konversi telemetri → capaian per kerangka), generator laporan perkembangan.
@@ -136,21 +135,21 @@ Tujuan: membuktikan loop inti [DOK: closed-loop] dengan cakupan minimum.
 - PR kecil, CI wajib hijau, tanpa melewati/menonaktifkan tes.
 - Repo mobile & portal saat ini kosong; isi awal commit adalah dokumen ini.
 
-## 6. Keputusan yang dibutuhkan dari Gunady
+## 6. Keputusan (dijawab Gunady, 2026-11-06)
 
-| # | Keputusan | Rekomendasi saya |
+| # | Keputusan | Hasil |
 |---|---|---|
-| 1 | **Usia & fokus MVP**: dokumen menyebut 3–8 th; MVP sebaiknya dipersempit | MVP usia **5–6 tahun** (TK B/PAUD), usia lain menyusul |
-| 2 | **Lokasi backend & kontrak API**: tidak ada repo backend; | Backend di repo `playandlearn-portal` (`apps/api`), kontrak OpenAPI di `contracts/`; alternatif: repo baru `playandlearn-api` |
-| 3 | **Bahasa/framework backend** | TypeScript/NestJS (selaras Portal); alternatif Kotlin |
-| 4 | **Platform mobile pertama** | Android dulu (Increment 1), iOS menyusul (Increment 3). Perlu dicatat: build iOS membutuhkan macOS/Xcode, yang tidak ada di lingkungan cloud ini sehingga iOS tidak dapat dikompilasi/diuji di sini |
-| 5 | **Kurikulum MVP**: mulai dari satu kerangka atau semua? | Mulai **Montessori + Kurikulum Merdeka** (selaras konteks Indonesia); Cambridge/IB PYP kemudian. Perlu ahli PAUD untuk validasi pemetaan |
-| 6 | **Model bisnis & jalur akun**: B2B sekolah (tenant) dulu, atau orang tua langsung? | B2B sekolah dulu sesuai Dokumen Analisis; jalur orang tua mandiri menyusul |
-| 7 | **Hosting/cloud & region data** (UU PDP, residensi data) | Perlu keputusan Anda (mis. region Indonesia/Asia Tenggara); belum saya pilih |
-| 8 | **Tim/jadwal**: ukuran tim, target tanggal | Menentukan apakah monolit modular cukup & durasi per increment |
-| 9 | **Aset kreatif**: ilustrasi, animasi, rekaman suara anak berbahasa Indonesia | Siapa yang menyediakan? Untuk MVP saya pakai placeholder berlisensi jelas |
-| 10 | **Nama/branding & identitas bundle** (mis. `id.playandlearn...`) | Perlu konfirmasi sebelum scaffold |
-| 11 | **Nasihat hukum & ahli PAUD** untuk persetujuan orang tua dan validasi kurikulum | Sangat disarankan sebelum rilis publik |
+| 1 | Usia fokus MVP | **4–7 tahun** (rentang dokumen 3–8 tetap sebagai target jangka panjang) |
+| 2 | Lokasi backend & kontrak API | Backend di repo `playandlearn-portal` (`apps/api`), kontrak OpenAPI di `contracts/` |
+| 3 | Bahasa backend | TypeScript / NestJS |
+| 4 | Platform mobile pertama | Android dulu; iOS menyusul (Increment 3) |
+| 5 | Kurikulum MVP | Montessori + Kurikulum Merdeka dulu |
+| 6 | Jalur akun | **Orang tua (B2C) dulu**; sekolah/guru di Increment 4 |
+| 7 | Hosting & region data | Ditentukan Gunady nanti, setelah pengembangan selesai (dev memakai lingkungan lokal/Docker; belum ada deploy) |
+| 8 | Ukuran tim & jadwal | Tidak perlu dijawab; durasi tidak dicantumkan |
+| 9 | Aset kreatif | Gunady meminta Claude yang mengerjakan: ilustrasi vektor/SVG dan animasi sederhana dibuat dalam kode; **rekaman suara** memakai TTS/placeholder dan perlu pengisi suara/lisensi sebelum rilis publik [ASUMSI] |
+| 10 | Nama & identitas | `playandlearn` |
+| 11 | Ahli PAUD & hukum | Tersedia (Gunady) — mereka mereview pemetaan kurikulum, aktivitas, dan persetujuan orang tua |
 
 ## 7. Risiko utama
 
