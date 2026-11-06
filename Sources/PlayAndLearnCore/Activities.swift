@@ -1,7 +1,7 @@
 import Foundation
 
-/// Tugas dalam satu level. Padanan `Task` di Android.
-public enum Task: Equatable {
+/// Tugas dalam satu level. Padanan `LevelTask` di Android.
+public enum LevelTask: Equatable {
     case sort(itemGroups: [String: String])
     case pattern(options: [String], answer: String)
     case count(count: Int, options: [Int])
@@ -48,12 +48,12 @@ public final class LevelSession {
     private var placed = Set<String>()
     private let childId, activityId: String
     private let contentVersion, level: Int
-    private let task: Task
+    private let task: LevelTask
     private let now: () -> Int64
     private let newId: () -> String
     private let emit: (GameEvent) -> Void
 
-    public init(childId: String, activityId: String, contentVersion: Int, level: Int, task: Task,
+    public init(childId: String, activityId: String, contentVersion: Int, level: Int, task: LevelTask,
                 now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
                 newId: @escaping () -> String = { UUID().uuidString.lowercased() },
                 emit: @escaping (GameEvent) -> Void) {

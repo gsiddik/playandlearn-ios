@@ -4,7 +4,7 @@ import XCTest
 final class ActivitiesTests: XCTestCase {
     var events: [GameEvent] = []
     var n = 0
-    func session(_ task: Task, level: Int = 1) -> LevelSession {
+    func session(_ task: LevelTask, level: Int = 1) -> LevelSession {
         LevelSession(childId: "child", activityId: "act", contentVersion: 1, level: level, task: task,
                      now: { Int64(1000 + self.n) }, newId: { self.n += 1; return "id-\(self.n)" }, emit: { self.events.append($0) })
     }
