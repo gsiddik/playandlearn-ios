@@ -117,12 +117,15 @@ struct RootView: View {
                 store.addPlayed(Int((end - startedAt) / 1000))
                 store.sessionState = SessionTracker.record(store.sessionState, startMs: startedAt, endMs: end)
                 screen = .home
+                Task { try? await api.sync() }
             }
             LevelView(childId: c.id, activity: act, level: level, version: pack.version, speak: speaker.say, save: store.save,
                       onDone: { wrong, revealed in
                           store.setLevel(c.id, act.id, LevelPolicy.nextLevel(current: level, maxLevel: act.levels.count, wrongAttempts: wrong, revealed: revealed))
                           finish()
                       }, onExit: finish)
+            // Sinkron berkala selama bermain agar dasbor guru hampir real-time; gagal = tetap offline.
+            .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 10_000_000_000); try? await api.sync() } }
         } else { Color.clear.onAppear { screen = .home } }
     }
 }
