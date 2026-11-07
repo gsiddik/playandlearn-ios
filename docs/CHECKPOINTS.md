@@ -10,3 +10,4 @@ Tag git tidak dapat di-push dari lingkungan pengembangan ini, jadi checkpoint di
 
 ## Review ahli PAUD
 - 2026-11-07 — konten v1 dan aturan buku nilai dinyatakan layak oleh ahli PAUD (dilaporkan Gunady). Lihat repo playandlearn-portal.
+| 6 — Penyusun konten, dasbor real-time, aset | `361b79c` | penyusun level visual, dasbor kelas WebSocket (sinkron berkala di Android/iOS), pustaka aset + rekam suara di browser | CI hijau; belum diuji manusia; audio aset belum diputar aplikasi anak |
