@@ -210,6 +210,8 @@ struct LevelView: View {
     let level: Int
     let version: Int
     let speak: (String) -> Void
+    let prompt: URL?
+    let play: (URL) -> Void
     let save: (GameEvent) -> Void
     let onDone: (Int, Bool) -> Void
     let onExit: () -> Void
@@ -232,7 +234,8 @@ struct LevelView: View {
         case .levelCompleted:
             speak("Hebat!"); onDone(session.wrongAttempts, revealedAny)
         case let .tryAgain(hint):
-            speak("Coba lagi ya")
+            // petunjuk 1 = ulang instruksi suara (rekaman bila ada)
+            if hint == 1, let prompt { play(prompt) } else { speak("Coba lagi ya") }
             if hint >= 2 {
                 switch task {
                 case let .pattern(_, ans): highlight = ans
@@ -258,6 +261,7 @@ struct LevelView: View {
         .onAppear {
             if session == nil {
                 session = LevelSession(childId: childId, activityId: activity.id, contentVersion: version, level: level, task: task, emit: save)
+                if let prompt { play(prompt) } // instruksi suara saat level mulai
             }
         }
     }

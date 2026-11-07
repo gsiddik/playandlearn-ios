@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import PlayAndLearnCore
 
 struct ChildDef: Codable, Equatable, Identifiable { let id: String; let alias: String; let birthYear: Int }
@@ -7,6 +8,7 @@ struct ActivityDef: Decodable, Identifiable {
     let id: String
     let kind: String
     let levels: [LevelDef]
+    let promptAudio: String?
     struct LevelDef: Decodable {
         let items: [Item]?
         let sequence: [String]?
@@ -35,7 +37,7 @@ struct OptionValue: Decodable {
     }
 }
 
-struct Pack: Decodable { let version: Int; let activities: [ActivityDef] }
+struct Pack: Decodable { let version: Int; let activities: [ActivityDef]; let assets: [String: AudioMeta]? }
 
 struct Policy: Codable {
     var dailyMinutes: Int = 30
@@ -69,7 +71,20 @@ final class Store {
         get { Set((d.string(forKey: "assigned") ?? "").split(separator: ",").map(String.init)) }
         set { d.set(newValue.sorted().joined(separator: ","), forKey: "assigned") }
     }
+    /// Audio instruksi hasil unduhan (Application Support, privat milik aplikasi).
+    var audioDir: URL {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("audio")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+    /// Berkas audio instruksi aktivitas bila sudah diunduh dan dapat diputar; selain itu nil (pakai suara sintetis).
+    func promptURL(for activity: ActivityDef, in pack: Pack) -> URL? {
+        guard let id = activity.promptAudio, let meta = pack.assets?[id], let name = PromptAudio.fileName(id: id, mime: meta.mime) else { return nil }
+        let u = audioDir.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: u.path) ? u : nil
+    }
     func logout() {
+        try? FileManager.default.removeItem(at: audioDir)
         for k in d.dictionaryRepresentation().keys { d.removeObject(forKey: k) }
         try? FileManager.default.removeItem(at: url)
     }
@@ -166,9 +181,29 @@ final class Api {
         let have = store.pack?.version ?? 0
         let (code, data) = try await call("GET", "/content/packs/latest?age=\(age)&haveVersion=\(have)")
         if code == 200, var o = try JSONSerialization.jsonObject(with: data) as? [String: Any], var m = o["manifest"] as? [String: Any] {
-            m["version"] = o["version"]; o = m
+            m["version"] = o["version"]; m["assets"] = o["assets"] ?? [String: Any](); o = m
             store.packData = try JSONSerialization.data(withJSONObject: o)
         } else if code != 304 { throw HttpError(code: code) }
+        await downloadAudio()
+    }
+
+    /// Unduh audio instruksi yang belum ada. Gagal = aktivitas tetap jalan dengan suara sintetis; dicoba lagi pada pembaruan berikutnya.
+    func downloadAudio() async {
+        guard let assets = store.pack?.assets else { return }
+        let dir = store.audioDir
+        let existing = Set((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+        for id in PromptAudio.toDownload(assets, existingFiles: existing) {
+            guard let meta = assets[id], let name = PromptAudio.fileName(id: id, mime: meta.mime),
+                  let (code, data) = try? await call("GET", "/assets/\(id)/file"), (200...299).contains(code),
+                  data.count <= 5 * 1024 * 1024,
+                  PromptAudio.hex(Array(SHA256.hash(data: data))) == meta.sha256 else { continue } // rusak/berubah: jangan simpan
+            try? data.write(to: dir.appendingPathComponent(name), options: .atomic)
+        }
+        // Buang audio yang tidak lagi dirujuk pack.
+        let keep = Set(assets.compactMap { PromptAudio.fileName(id: $0.key, mime: $0.value.mime) })
+        for f in (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [] where !keep.contains(f) {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent(f))
+        }
     }
     func refreshPolicy(childId: String) async throws {
         let (code, data) = try await call("GET", "/children/\(childId)/policy")

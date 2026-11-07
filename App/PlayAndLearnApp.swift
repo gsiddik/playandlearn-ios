@@ -10,7 +10,16 @@ struct PlayAndLearnApp: App {
 /// Suara sintetis (TTS) sebagai placeholder sampai ada rekaman pengisi suara.
 final class Speaker {
     private let synth = AVSpeechSynthesizer()
+    private var player: AVAudioPlayer?
+    /// Putar audio instruksi; kegagalan diam-diam (anak tetap bisa bermain).
+    func play(_ url: URL) {
+        synth.stopSpeaking(at: .immediate)
+        player?.stop()
+        player = try? AVAudioPlayer(contentsOf: url)
+        player?.play()
+    }
     func say(_ text: String) {
+        player?.stop()
         let u = AVSpeechUtterance(string: text)
         u.voice = AVSpeechSynthesisVoice(language: "id-ID")
         synth.stopSpeaking(at: .immediate)
@@ -119,7 +128,7 @@ struct RootView: View {
                 screen = .home
                 Task { try? await api.sync() }
             }
-            LevelView(childId: c.id, activity: act, level: level, version: pack.version, speak: speaker.say, save: store.save,
+            LevelView(childId: c.id, activity: act, level: level, version: pack.version, speak: speaker.say, prompt: store.promptURL(for: act, in: pack), play: speaker.play, save: store.save,
                       onDone: { wrong, revealed in
                           store.setLevel(c.id, act.id, LevelPolicy.nextLevel(current: level, maxLevel: act.levels.count, wrongAttempts: wrong, revealed: revealed))
                           finish()
